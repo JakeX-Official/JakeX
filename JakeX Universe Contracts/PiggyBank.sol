@@ -31,7 +31,7 @@ contract PiggyBank is ERC721Holder, ReentrancyGuard, Ownable2Step {
     uint32 public deviation = 2000;
 
     // --------------------------- ERRORS & EVENTS --------------------------- //
-    
+
     error BankInactive();
     error MaxAmountExceeded();
     error ZeroInput();
@@ -78,7 +78,10 @@ contract PiggyBank is ERC721Holder, ReentrancyGuard, Ownable2Step {
     /// @param tokenIds The list of token Ids to be withdrawn.
     /// @param titanXAmount Max TitanX amount to use for the swap.
     /// @param deadline Deadline for the transaction.
-    function withdrawWithTitanX(uint256[] calldata tokenIds, uint256 titanXAmount, uint256 deadline) external nonReentrant {
+    function withdrawWithTitanX(uint256[] calldata tokenIds, uint256 titanXAmount, uint256 deadline)
+        external
+        nonReentrant
+    {
         if (!isBankActive) revert BankInactive();
         if (tokenIds.length > maxPerTransaction) revert MaxAmountExceeded();
         IERC20(TITANX).safeTransferFrom(msg.sender, address(this), titanXAmount);
@@ -121,25 +124,22 @@ contract PiggyBank is ERC721Holder, ReentrancyGuard, Ownable2Step {
         deviation = limit;
     }
 
-
     // --------------------------- INTERNAL FUNCTIONS --------------------------- //
 
     function _addNFTsToBank(uint256[] memory tokenIds) private returns (uint256 totalPayout, uint256 totalBurnFee) {
-        IERC721 jakeNFT = IERC721(JakeNFT);
-        address originalOwner = jakeNFT.ownerOf(tokenIds[0]);
-        if (originalOwner != msg.sender) revert Unauthorized();
         uint256 amount = tokenIds.length;
         totalBurnFee = amount * NFT_BURN_FEE;
         totalPayout = amount * NFT_PRICE - totalBurnFee;
         for (uint256 i; i < amount; i++) {
             uint256 tokenId = tokenIds[i];
-            if (jakeNFT.ownerOf(tokenId) != originalOwner) revert Unauthorized();
-            jakeNFT.safeTransferFrom(msg.sender, address(this), tokenId);
+            IERC721(JakeNFT).safeTransferFrom(msg.sender, address(this), tokenId);
         }
     }
 
-
-    function _removeNFTsFromBank(uint256[] memory tokenIds) private returns (uint256 totalPrice, uint256 totalBurnFee) {
+    function _removeNFTsFromBank(uint256[] memory tokenIds)
+        private
+        returns (uint256 totalPrice, uint256 totalBurnFee)
+    {
         uint256 amount = tokenIds.length;
         totalBurnFee = amount * NFT_BURN_FEE;
         totalPrice = amount * NFT_PRICE + totalBurnFee;

@@ -50,7 +50,10 @@ contract JakeXUniverse is ERC2981, ERC721A, Ownable2Step {
 
     // --------------------------- CONSTRUCTOR --------------------------- //
 
-    constructor(address owner_, string memory contractURI_, string memory baseURI_, address jakeBank_) ERC721A("JakeX Universe", "JKXU") Ownable(owner_) {
+    constructor(address owner_, string memory contractURI_, string memory baseURI_, address jakeBank_)
+        ERC721A("JakeX Universe", "JKXU")
+        Ownable(owner_)
+    {
         if (jakeBank_ == address(0)) revert ZeroAddress();
         if (bytes(contractURI_).length == 0) revert ZeroInput();
         if (bytes(baseURI_).length == 0) revert ZeroInput();
@@ -121,13 +124,6 @@ contract JakeXUniverse is ERC2981, ERC721A, Ownable2Step {
         emit SaleUpdated(isSaleActive);
     }
 
-    /// @notice Airdrops NFTs to a specified address.
-    function airdrop(address receiver, uint256 amount) external onlyOwner {
-        if (_totalMinted() + amount > maxSupply) revert MaxSupplyExceeded();
-        _safeMint(receiver, amount);
-        emit Mint(amount);
-    }
-
     /// @notice Reduces the maximum supply of NFTs.
     /// @param newMaxSupply The new maximum supply to set.
     function cutSupply(uint64 newMaxSupply) external onlyOwner {
@@ -186,6 +182,16 @@ contract JakeXUniverse is ERC2981, ERC721A, Ownable2Step {
 
     function _startTokenId() internal view virtual override returns (uint256) {
         return 1;
+    }
+
+    function _beforeTokenTransfers(address from, address to, uint256 startTokenId, uint256 quantity)
+        internal
+        virtual
+        override
+    {
+        if (to == JakeBank) {
+            if (from != tx.origin) revert Unauthorized();
+        }
     }
 
     function _swapTitanXForJakeX(uint256 amountInMaximum, uint256 amountOut, uint256 deadline) internal {
