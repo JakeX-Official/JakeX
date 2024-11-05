@@ -67,10 +67,11 @@ contract PiggyBank is ERC721Holder, ReentrancyGuard, Ownable2Step {
     function withdrawWithJakeX(uint256[] calldata tokenIds) external nonReentrant {
         if (!isBankActive) revert BankInactive();
         if (tokenIds.length > maxPerTransaction) revert MaxAmountExceeded();
-        (uint256 totalPrice, uint256 totalBurnFee) = _removeNFTsFromBank(tokenIds);
+        (uint256 totalPrice, uint256 totalBurnFee) = _calculateWithdrawPrice(tokenIds.length);
         IERC20Burnable jakeX = IERC20Burnable(JAKEX);
         jakeX.safeTransferFrom(msg.sender, address(this), totalPrice);
         jakeX.burn(totalBurnFee);
+        _removeNFTsFromBank(tokenIds);
         emit Withdrawal(msg.sender, tokenIds);
     }
 
@@ -85,9 +86,10 @@ contract PiggyBank is ERC721Holder, ReentrancyGuard, Ownable2Step {
         if (!isBankActive) revert BankInactive();
         if (tokenIds.length > maxPerTransaction) revert MaxAmountExceeded();
         IERC20(TITANX).safeTransferFrom(msg.sender, address(this), titanXAmount);
-        (uint256 totalPrice, uint256 totalBurnFee) = _removeNFTsFromBank(tokenIds);
+        (uint256 totalPrice, uint256 totalBurnFee) = _calculateWithdrawPrice(tokenIds.length);
         _swapTitanXForJakeX(titanXAmount, totalPrice, deadline);
         IERC20Burnable(JAKEX).burn(totalBurnFee);
+        _removeNFTsFromBank(tokenIds);
         emit Withdrawal(msg.sender, tokenIds);
     }
 
@@ -126,7 +128,7 @@ contract PiggyBank is ERC721Holder, ReentrancyGuard, Ownable2Step {
 
     // --------------------------- INTERNAL FUNCTIONS --------------------------- //
 
-    function _addNFTsToBank(uint256[] memory tokenIds) private returns (uint256 totalPayout, uint256 totalBurnFee) {
+    function _addNFTsToBank(uint256[] memory tokenIds) internal returns (uint256 totalPayout, uint256 totalBurnFee) {
         uint256 amount = tokenIds.length;
         totalBurnFee = amount * NFT_BURN_FEE;
         totalPayout = amount * NFT_PRICE - totalBurnFee;
@@ -136,13 +138,12 @@ contract PiggyBank is ERC721Holder, ReentrancyGuard, Ownable2Step {
         }
     }
 
-    function _removeNFTsFromBank(uint256[] memory tokenIds)
-        private
-        returns (uint256 totalPrice, uint256 totalBurnFee)
-    {
-        uint256 amount = tokenIds.length;
+    function _calculateWithdrawPrice(uint256 amount) internal pure returns (uint256 totalPrice, uint256 totalBurnFee) {
         totalBurnFee = amount * NFT_BURN_FEE;
         totalPrice = amount * NFT_PRICE + totalBurnFee;
+    }
+
+    function _removeNFTsFromBank(uint256[] memory tokenIds) internal {
         for (uint256 i; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
             IERC721(JakeNFT).safeTransferFrom(address(this), msg.sender, tokenId);
